@@ -1,0 +1,243 @@
+networks:
+  datalake-net:
+    driver: bridge
+
+volumes:
+  redis_data:
+  minio_data:
+  postgres_hive_data:
+  postgres_airflow_data:
+  airflow_logs:
+
+services:
+
+  # ===============================================================
+  # 1) REDIS -> simula a fila de ingestão (Kinesis / SQS)
+  # ===============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - datalake-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ===============================================================
+  # 2) MINIO -> simula o Data Lake em S3
+  # ===============================================================
+  minio:
+    # minio/minio saiu do Docker Hub em out/2025; quay.io mantém o último espelho publicado
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000" # API S3
+      - "9001:9001" # Console web
+    volumes:
+      - minio_data:/data
+    networks:
+      - datalake-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # cria o bucket "datalake" automaticamente assim que o MinIO sobe
+  minio-init:
+    # minio/mc saiu do Docker Hub em out/2025; quay.io mantém o último espelho publicado
+    image: quay.io/minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/${MINIO_BUCKET} &&
+      echo 'Bucket ${MINIO_BUCKET} pronto.'
+      "
+    networks:
+      - datalake-net
+
+  # ===============================================================
+  # 3) POSTGRES + HIVE METASTORE -> simula o AWS Glue Data Catalog
+  # ===============================================================
+  postgres-hive:
+    image: postgres:13
+    container_name: postgres-hive
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_HIVE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_HIVE_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_HIVE_DB}
+    volumes:
+      - postgres_hive_data:/var/lib/postgresql/data
+    networks:
+      - datalake-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_HIVE_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  hive-metastore:
+    build: ./hive-metastore
+    container_name: hive-metastore
+    restart: unless-stopped
+    ports:
+      - "9083:9083" # porta thrift usada pelo Spark e pelo Trino
+    environment:
+      METASTORE_DB_HOSTNAME: postgres-hive
+      METASTORE_DB_PORT: "5432"
+    depends_on:
+      postgres-hive:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./hive-metastore/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+      # Substitui o entrypoint.sh travado em MySQL (ver comentário no arquivo)
+      - ./hive-metastore/entrypoint.sh:/entrypoint.sh:ro
+    networks:
+      - datalake-net
+
+  # ===============================================================
+  # 4) TRINO -> simula o AWS Athena
+  # ===============================================================
+  trino:
+    # Versão travada (em vez de :latest): a config do conector Hive/S3 muda entre
+    # versões do Trino (ex: propriedades hive.s3.* -> s3.* na migração pro native S3 filesystem)
+    image: trinodb/trino:483
+    container_name: trino
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog:ro
+    depends_on:
+      - hive-metastore
+    networks:
+      - datalake-net
+
+  # ===============================================================
+  # 5) SPARK -> simula o AWS Glue Job / EMR
+  # ===============================================================
+  spark-master:
+    build: ./spark
+    container_name: spark-master
+    restart: unless-stopped
+    environment:
+      SPARK_MODE: master
+    ports:
+      - "8081:8080" # UI do Spark Master
+      - "7077:7077" # porta RPC (submissão de jobs)
+    networks:
+      - datalake-net
+
+  spark-worker:
+    build: ./spark
+    container_name: spark-worker
+    restart: unless-stopped
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8081" # UI do Spark Worker
+    networks:
+      - datalake-net
+
+  # ===============================================================
+  # 6) AIRFLOW -> orquestrador (simula Step Functions / MWAA)
+  # ===============================================================
+  postgres-airflow:
+    image: postgres:13
+    container_name: postgres-airflow
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_AIRFLOW_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AIRFLOW_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_AIRFLOW_DB}
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    networks:
+      - datalake-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AIRFLOW_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  airflow-init:
+    build: ./airflow
+    container_name: airflow-init
+    depends_on:
+      postgres-airflow:
+        condition: service_healthy
+    environment: &airflow-common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_AIRFLOW_USER}:${POSTGRES_AIRFLOW_PASSWORD}@postgres-airflow/${POSTGRES_AIRFLOW_DB}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+    entrypoint: /bin/bash
+    # --conn-host leva o prefixo "spark://" embutido de propósito: o SparkSubmitOperator
+    # monta o --master do spark-submit como "{host}:{port}" literalmente, sem adicionar
+    # o esquema sozinho — por isso não dá pra configurar isso só com AIRFLOW_CONN_* em
+    # formato de URI (o parser de URI engoliria o "spark://" como conn_type, não como host).
+    command: >
+      -c "airflow db migrate &&
+      (airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname Admin --lastname User --role Admin --email admin@example.com || true) &&
+      (airflow connections add spark_default --conn-type spark --conn-host spark://spark-master --conn-port 7077 || true)"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./spark/jobs:/opt/airflow/spark_jobs
+      - airflow_logs:/opt/airflow/logs
+    networks:
+      - datalake-net
+
+  airflow-webserver:
+    build: ./airflow
+    container_name: airflow-webserver
+    restart: unless-stopped
+    depends_on:
+      - airflow-init
+    environment: *airflow-common-env
+    command: webserver
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./spark/jobs:/opt/airflow/spark_jobs
+      - airflow_logs:/opt/airflow/logs
+    networks:
+      - datalake-net
+
+  airflow-scheduler:
+    build: ./airflow
+    container_name: airflow-scheduler
+    restart: unless-stopped
+    depends_on:
+      - airflow-init
+    environment: *airflow-common-env
+    command: scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./spark/jobs:/opt/airflow/spark_jobs
+      - airflow_logs:/opt/airflow/logs
+    networks:
+      - datalake-net

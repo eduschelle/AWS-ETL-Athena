@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Projeto: dados e logs gerados pelos containers (Airflow, Spark, etc.)
+airflow/logs/
+spark/logs/
+*.parquet
