@@ -25,3 +25,16 @@ RUN pip install --no-cache-dir \
     boto3==1.43.97 \
     redis==8.1.0 \
     trino==0.331.0
+
+# O SparkSubmitOperator roda em deploy-mode "client" por padrão: o driver do Spark
+# executa AQUI DENTRO do container do Airflow (não no cluster spark-master/worker),
+# então este pyspark local também precisa dos jars de acesso ao S3/MinIO — os mesmos
+# do spark/Dockerfile, versões travadas para bater com o Hadoop 3.3.4 do Spark 3.5.1.
+ENV HADOOP_AWS_VERSION=3.3.4
+ENV AWS_SDK_BUNDLE_VERSION=1.12.262
+
+RUN PYSPARK_JARS=$(python -c "import pyspark, os; print(os.path.join(os.path.dirname(pyspark.__file__), 'jars'))") && \
+    curl -sS -L -o "${PYSPARK_JARS}/hadoop-aws-${HADOOP_AWS_VERSION}.jar" \
+      "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar" && \
+    curl -sS -L -o "${PYSPARK_JARS}/aws-java-sdk-bundle-${AWS_SDK_BUNDLE_VERSION}.jar" \
+      "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_BUNDLE_VERSION}/aws-java-sdk-bundle-${AWS_SDK_BUNDLE_VERSION}.jar"

@@ -31,6 +31,16 @@ producer.py --(LPUSH)--> Redis --(RPOP)--> Spark --(Parquet)--> MinIO (S3)
 - Python 3.11+ com `venv` (usado só pelo `producer.py`, fora do Docker)
 - (Opcional) conta AWS configurada via `aws configure`, caso queira apontar o pipeline pro S3 real em vez do MinIO
 
+### Nota para Windows (PowerShell + WSL)
+
+Se você não habilitou a integração do Docker Desktop com o WSL (Settings → Resources → WSL Integration), o `docker`/`docker compose` só funcionam pelo **PowerShell**, enquanto a `.venv`/`producer.py` rodam melhor pelo **WSL** (evita o problema de `.venv` criada por um Python incompatível com o outro shell). Os dois shells conversam com os mesmos containers normalmente, já que as portas estão expostas no `localhost`.
+
+Ao alimentar SQL para o Trino via stdin no **PowerShell**, evite `Get-Content | docker exec -i ...` — o PowerShell insere um BOM (marca de encoding) que quebra o parser do Trino. Use `cmd /c` para um redirecionamento de verdade:
+```powershell
+cmd /c "docker exec -i trino trino --catalog hive --schema default < sql\queries.sql"
+```
+Rodando direto do **WSL/bash**, o redirecionamento `<` normal (mostrado nos comandos abaixo) funciona sem esse problema.
+
 ## 1. Configurar o ambiente
 
 Copie/edite o `.env` na raiz do projeto se quiser trocar alguma credencial (usuário/senha do MinIO, Postgres, Airflow). Os valores padrão já funcionam out-of-the-box para uso local.
