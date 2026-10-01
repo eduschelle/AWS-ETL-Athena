@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Os modulos puros vivem junto dos jobs Spark porque o volume ./spark/jobs ja e montado
+# nos containers do Airflow (/opt/airflow/spark_jobs). Nenhum deles importa pyspark, de
+# proposito: assim os testes rodam no host, sem Docker, sem Spark e sem rede.
+pythonpath = ["spark/jobs"]
+testpaths = ["tests"]
+addopts = "-q"

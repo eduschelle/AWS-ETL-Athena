@@ -194,6 +194,19 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
       AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+      # PYTHONPATH e obrigatorio: so /opt/airflow/dags e /opt/airflow/plugins entram no
+      # sys.path do Airflow, entao as DAGs nao conseguiriam importar os modulos
+      # compartilhados que vivem em /opt/airflow/spark_jobs (volume ./spark/jobs).
+      PYTHONPATH: /opt/airflow/spark_jobs
+      # Credenciais do MinIO: antes disto os jobs so funcionavam pelos defaults
+      # hardcoded no spark_job.py.
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      # brapi.dev: sem token so PETR4/VALE3/ITUB4/MGLU3 respondem (os outros dao 401).
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      BRAPI_MODO: ${BRAPI_MODO:-auto}
     entrypoint: /bin/bash
     # --conn-host leva o prefixo "spark://" embutido de propósito: o SparkSubmitOperator
     # monta o --master do spark-submit como "{host}:{port}" literalmente, sem adicionar

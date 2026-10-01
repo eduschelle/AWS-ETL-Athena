@@ -1,0 +1,4 @@
+# Dependencias apenas de desenvolvimento/teste.
+# Deliberadamente SEM pyspark: se um teste precisar de Spark para rodar, a logica esta no
+# lugar errado — toda a matematica financeira vive em modulos puros (dict -> dict).
+pytest==8.3.4

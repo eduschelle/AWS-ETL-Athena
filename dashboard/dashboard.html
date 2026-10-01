@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Classificação de investimentos &middot; B3</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+.viz-root{
+  color-scheme:light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  --delta-pos:#006300; --delta-neg:#d03b3b;
+  --hm-1-bg:#b7d3f6; --hm-1-fg:#0b0b0b;
+  --hm-2-bg:#86b6ef; --hm-2-fg:#0b0b0b;
+  --hm-3-bg:#5598e7; --hm-3-fg:#0b0b0b;
+  --hm-4-bg:#2a78d6; --hm-4-fg:#ffffff;
+  --hm-5-bg:#1c5cab; --hm-5-fg:#ffffff;
+  --hm-6-bg:#104281; --hm-6-fg:#ffffff;
+  --hm-0-bg:#f0efec; --hm-0-fg:#898781;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])) .viz-root{
+    color-scheme:dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --delta-pos:#0ca30c; --delta-neg:#e66767;
+    --hm-1-bg:#184f95; --hm-1-fg:#ffffff;
+    --hm-2-bg:#1c5cab; --hm-2-fg:#ffffff;
+    --hm-3-bg:#2a78d6; --hm-3-fg:#ffffff;
+    --hm-4-bg:#3987e5; --hm-4-fg:#0b0b0b;
+    --hm-5-bg:#6da7ec; --hm-5-fg:#0b0b0b;
+    --hm-6-bg:#9ec5f4; --hm-6-fg:#0b0b0b;
+    --hm-0-bg:#383835; --hm-0-fg:#898781;
+  }
+}
+:root[data-theme="dark"] .viz-root{
+  color-scheme:dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+  --delta-pos:#0ca30c; --delta-neg:#e66767;
+  --hm-1-bg:#184f95; --hm-1-fg:#ffffff;
+  --hm-2-bg:#1c5cab; --hm-2-fg:#ffffff;
+  --hm-3-bg:#2a78d6; --hm-3-fg:#ffffff;
+  --hm-4-bg:#3987e5; --hm-4-fg:#0b0b0b;
+  --hm-5-bg:#6da7ec; --hm-5-fg:#0b0b0b;
+  --hm-6-bg:#9ec5f4; --hm-6-fg:#0b0b0b;
+  --hm-0-bg:#383835; --hm-0-fg:#898781;
+}
+html,body{margin:0;padding:0}
+body{background:var(--plane);color:var(--text-primary);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.viz-root{background:var(--plane);min-height:100vh;padding:28px 24px 48px}
+.wrap{max-width:1360px;margin:0 auto}
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+  margin-bottom:22px}
+h1{font-size:21px;font-weight:650;margin:0 0 4px}
+h2{font-size:15px;font-weight:620;margin:0 0 3px}
+.sub{color:var(--text-secondary);margin:0 0 14px;font-size:12.5px;max-width:78ch}
+.sec{color:var(--text-secondary)}
+code{font-size:0.92em;background:var(--hm-0-bg);padding:1px 4px;border-radius:3px}
+#tema{background:var(--surface-1);color:var(--text-secondary);cursor:pointer;
+  border:1px solid var(--border);border-radius:7px;padding:7px 12px;font:inherit;font-size:12px}
+#tema:hover{color:var(--text-primary)}
+.bloco{background:var(--surface-1);border:1px solid var(--border);border-radius:11px;
+  padding:18px 18px 20px;margin-bottom:18px}
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;
+  margin-bottom:18px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:11px;
+  padding:15px 16px;border-left:3px solid var(--baseline)}
+.tile-good{border-left-color:var(--good)}
+.tile-warning{border-left-color:var(--warning)}
+.tile-critical{border-left-color:var(--critical)}
+.tile-valor{font-size:29px;font-weight:620;line-height:1.1;letter-spacing:-0.01em}
+.tile-rotulo{font-size:12.5px;color:var(--text-secondary);margin-top:3px}
+.tile-nota{font-size:11px;color:var(--muted);margin-top:2px}
+/* legenda de status */
+.legenda{display:flex;flex-wrap:wrap;gap:9px 26px;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:11px;padding:14px 18px;margin-bottom:18px;
+  font-size:12.5px}
+.leg-item{display:flex;align-items:center;gap:9px}
+/* selo de status: cor + icone + rotulo, nunca cor sozinha */
+/* O TEXTO usa tinta de texto; so o ICONE carrega a cor de status. Alem de ser a regra
+   geral (rotulo em tinta de texto, marca colorida ao lado para a identidade), isto resolve
+   um problema concreto de leitura: o amarelo de "warning" fica em 1.79:1 contra a
+   superficie clara, entao um rotulo escrito nele seria quase ilegivel. Com cor + icone +
+   palavra, nenhuma informacao depende da cor sozinha. */
+.selo{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+  letter-spacing:0.02em;white-space:nowrap;color:var(--text-primary)}
+.selo-icone{font-size:10px;line-height:1}
+.selo-good .selo-icone{color:var(--good)}
+.selo-warning .selo-icone{color:var(--warning)}
+.selo-critical .selo-icone{color:var(--critical)}
+.selo-muted{color:var(--text-secondary)}
+.selo-muted .selo-icone{color:var(--muted)}
+/* tabela */
+.rolagem{overflow-x:auto;margin:0 -4px;padding:0 4px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--grid);
+  white-space:nowrap}
+thead th{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:0.03em;
+  text-transform:uppercase;border-bottom:1px solid var(--baseline)}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--plane)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.papel{font-weight:620}
+.forte{font-weight:620}
+.delta-pos{color:var(--delta-pos)} .delta-neg{color:var(--delta-neg)}
+/* Tinta neutra de proposito. A nota (faixa de score) e o sinal (score + preco +
+   confianca) sao coisas diferentes — ITUB4 e nota B com sinal NEUTRO. Pintar as duas
+   colunas de verde/vermelho sugeriria que dizem a mesma coisa. A cor de status fica
+   exclusivamente na coluna Sinal; aqui a propria letra carrega a identidade. */
+.nota{display:inline-block;min-width:19px;text-align:center;font-weight:620;font-size:11.5px}
+.nota-SD{color:var(--muted)}
+/* heatmap: 2px de superficie entre celulas */
+/* Colunas estreitas e fixas: preenchimento saturado e para marca pequena, nunca para
+   bloco grande — esticar a celula ate a largura da pagina faria o heatmap ler como
+   grafico de barras e pesaria demais visualmente. */
+.heatmap{display:grid;grid-template-columns:auto repeat(var(--cols),96px);
+  gap:2px;margin-bottom:12px;width:max-content;max-width:100%}
+.hm-cel{padding:7px 9px;font-size:12px;display:flex;align-items:center}
+.hm-topo{color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:0.03em;
+  text-transform:uppercase;justify-content:center;padding-bottom:5px}
+.hm-lado{font-weight:620;font-size:12.5px;padding-right:12px}
+.hm-val{justify-content:center;border-radius:4px;font-variant-numeric:tabular-nums;
+  cursor:default;transition:outline-color 90ms}
+.hm-val:hover,.hm-val:focus-visible{outline:2px solid var(--text-primary);
+  outline-offset:1px}
+.hm-0{background:var(--hm-0-bg);color:var(--hm-0-fg);font-size:10.5px;
+  background-image:repeating-linear-gradient(45deg,transparent 0 4px,var(--border) 4px 5px)}
+.hm-1{background:var(--hm-1-bg);color:var(--hm-1-fg)}
+.hm-2{background:var(--hm-2-bg);color:var(--hm-2-fg)}
+.hm-3{background:var(--hm-3-bg);color:var(--hm-3-fg)}
+.hm-4{background:var(--hm-4-bg);color:var(--hm-4-fg)}
+.hm-5{background:var(--hm-5-bg);color:var(--hm-5-fg)}
+.hm-6{background:var(--hm-6-bg);color:var(--hm-6-fg)}
+.hm-legenda{display:flex;align-items:center;gap:3px;font-size:11px}
+.hm-legenda .sec{margin:0 6px}
+.hm-leg-passo{width:30px;height:9px;border-radius:2px;background:var(--hm-1-bg)}
+.hm-leg-passo.hm-2{background:var(--hm-2-bg)} .hm-leg-passo.hm-3{background:var(--hm-3-bg)}
+.hm-leg-passo.hm-4{background:var(--hm-4-bg)} .hm-leg-passo.hm-5{background:var(--hm-5-bg)}
+.hm-leg-passo.hm-6{background:var(--hm-6-bg)}
+/* tooltip */
+#dica{position:fixed;z-index:50;pointer-events:none;opacity:0;transition:opacity 90ms;
+  background:var(--text-primary);color:var(--surface-1);font-size:11.5px;line-height:1.45;
+  padding:6px 9px;border-radius:6px;max-width:300px;box-shadow:0 2px 10px rgba(0,0,0,0.22)}
+#dica.on{opacity:1}
+[data-dica]{cursor:help}
+footer{color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:22px;
+  border-top:1px solid var(--grid);padding-top:14px;max-width:92ch}
+footer strong{color:var(--text-secondary);font-weight:600}
+@media print{.viz-root{padding:0}#tema{display:none}
+  .bloco,.tile,.legenda{border-color:#999;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Classificação de investimentos &middot; B3</h1>
+    <p class="sub">Data de referência <strong>2026-09-28</strong> &middot;
+      14 ativos &middot; gerado em 01/10/2026 18:26 UTC</p>
+  </div>
+  <button id="tema" type="button">Tema</button>
+</header>
+
+<section class="kpis"><div class="tile "><div class="tile-valor">14</div><div class="tile-rotulo">Ativos no universo</div><div class="tile-nota">13 com score</div></div><div class="tile tile-good"><div class="tile-valor">▲ 4</div><div class="tile-rotulo">Sinal forte</div><div class="tile-nota">score &ge; 65 e abaixo do valor</div></div><div class="tile tile-warning"><div class="tile-valor">● 5</div><div class="tile-rotulo">Neutro</div><div class="tile-nota">sem tese clara</div></div><div class="tile tile-critical"><div class="tile-valor">▼ 4</div><div class="tile-rotulo">Sinal fraco</div><div class="tile-nota">score &lt; 50 ou caro</div></div><div class="tile "><div class="tile-valor">4/14</div><div class="tile-rotulo">Com dados reais</div><div class="tile-nota">o resto e sintetico</div></div></section>
+<section class="legenda"><div class="leg-item"><span class="selo selo-good"><span class="selo-icone" aria-hidden="true">▲</span>FORTE</span><span class="sec">score &ge; 65, preço abaixo do valor de Graham e dados confiáveis</span></div><div class="leg-item"><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span><span class="sec">sem alerta, mas sem reunir todas as condições</span></div><div class="leg-item"><span class="selo selo-critical"><span class="selo-icone" aria-hidden="true">▼</span>FRACO</span><span class="sec">score &lt; 50 <em>ou</em> preço &gt; 20% acima do valor intrínseco</span></div><div class="leg-item"><span class="selo selo-muted"><span class="selo-icone" aria-hidden="true">—</span>SEM DADOS</span><span class="sec">não elegível (BDR, FII ou coleta sem retorno)</span></div></section>
+<section class="bloco"><h2>Ativos classificados</h2><p class="sub">Ordenado por score. Passe o mouse na coluna <em>Confiança</em> para ver o grupo de comparação e a cobertura de dados.</p><div class="rolagem"><table><thead><tr><th class="" scope="col">Papel</th><th class="" scope="col">Sinal</th><th class="" scope="col">Nota</th><th class="num" scope="col">Score</th><th class="num" scope="col">P/L</th><th class="num" scope="col">P/VP</th><th class="num" scope="col">DY</th><th class="num" scope="col">ROE</th><th class="num" scope="col">Dív.Líq/PL</th><th class="num" scope="col">Marg. seg.</th><th class="" scope="col">Setor</th><th class="" scope="col">Porte</th><th class="" scope="col">Risco</th><th class="" scope="col">Perfil</th><th class="" scope="col">Confiança</th><th class="" scope="col">Fonte</th></tr></thead><tbody><tr><th scope="row" class="papel">ITUB4</th><td><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span></td><td><span class="nota nota-B">B</span></td><td class="num forte">75.4</td><td class="num">10.5</td><td class="num">2.25</td><td class="num">7.0%</td><td class="num">21.5%</td><td class="num">&ndash;</td><td class="num delta-neg">-2%</td><td>Serviços Financeiros</td><td>LARGE</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: universo (n=4) · cobertura 75% · liquidez 1.1 bi/pregão">media</td><td class="sec">brapi</td></tr><tr><th scope="row" class="papel">PETR4</th><td><span class="selo selo-good"><span class="selo-icone" aria-hidden="true">▲</span>FORTE</span></td><td><span class="nota nota-B">B</span></td><td class="num forte">70.3</td><td class="num">4.8</td><td class="num">1.32</td><td class="num">7.0%</td><td class="num">27.7%</td><td class="num">1.29</td><td class="num delta-pos">89%</td><td>Energia</td><td>LARGE</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: universo (n=4) · cobertura 100% · liquidez 2.0 bi/pregão">alta</td><td class="sec">brapi</td></tr><tr><th scope="row" class="papel">BBAS3</th><td><span class="selo selo-good"><span class="selo-icone" aria-hidden="true">▲</span>FORTE</span></td><td><span class="nota nota-B">B</span></td><td class="num forte">67.5</td><td class="num">3.4</td><td class="num">0.52</td><td class="num">10.2%</td><td class="num">15.5%</td><td class="num">1.51</td><td class="num delta-pos">260%</td><td>Servicos Financeiros</td><td>LARGE</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: universo (n=9) · cobertura 100% · liquidez 1.1 bi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">WEGE3</th><td><span class="selo selo-good"><span class="selo-icone" aria-hidden="true">▲</span>FORTE</span></td><td><span class="nota nota-B">B</span></td><td class="num forte">65.8</td><td class="num">3.7</td><td class="num">0.20</td><td class="num">3.6%</td><td class="num">5.4%</td><td class="num">0.16</td><td class="num delta-pos">451%</td><td>Bens Industriais</td><td>LARGE</td><td>BAIXO</td><td>VALOR</td><td class="sec" data-dica="Grupo de comparação: macro (n=5) · cobertura 100% · liquidez 1.3 bi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">EGIE3</th><td><span class="selo selo-good"><span class="selo-icone" aria-hidden="true">▲</span>FORTE</span></td><td><span class="nota nota-B">B</span></td><td class="num forte">65.7</td><td class="num">3.7</td><td class="num">1.10</td><td class="num">8.4%</td><td class="num">29.5%</td><td class="num">1.49</td><td class="num delta-pos">134%</td><td>Utilidade Publica</td><td>LARGE</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: macro (n=5) · cobertura 100% · liquidez 1.3 bi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">ABEV3</th><td><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span></td><td><span class="nota nota-C">C</span></td><td class="num forte">64.7</td><td class="num">2.1</td><td class="num">0.30</td><td class="num">4.3%</td><td class="num">14.2%</td><td class="num">0.84</td><td class="num delta-pos">488%</td><td>Bens de Consumo Defensivo</td><td>LARGE</td><td>MEDIO</td><td>CRESCIMENTO</td><td class="sec" data-dica="Grupo de comparação: macro (n=5) · cobertura 100% · liquidez 267 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">ITSA4</th><td><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span></td><td><span class="nota nota-C">C</span></td><td class="num forte">63.3</td><td class="num">2.7</td><td class="num">0.64</td><td class="num">7.3%</td><td class="num">23.3%</td><td class="num">4.31</td><td class="num delta-pos">260%</td><td>Servicos Financeiros</td><td>SMALL</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: universo (n=9) · cobertura 100% · liquidez 253 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">BBDC4</th><td><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span></td><td><span class="nota nota-C">C</span></td><td class="num forte">57.2</td><td class="num">2.2</td><td class="num">0.55</td><td class="num">1.9%</td><td class="num">24.6%</td><td class="num">2.58</td><td class="num delta-pos">329%</td><td>Servicos Financeiros</td><td>LARGE</td><td>MEDIO</td><td>CRESCIMENTO</td><td class="sec" data-dica="Grupo de comparação: universo (n=9) · cobertura 100% · liquidez 423 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">BRAV4</th><td><span class="selo selo-warning"><span class="selo-icone" aria-hidden="true">●</span>NEUTRO</span></td><td><span class="nota nota-C">C</span></td><td class="num forte">52.5</td><td class="num">12.3</td><td class="num">1.98</td><td class="num">5.6%</td><td class="num">16.1%</td><td class="num">1.15</td><td class="num delta-neg">-4%</td><td>Energia</td><td>LARGE</td><td>MEDIO</td><td>ESPECULATIVO</td><td class="sec" data-dica="Grupo de comparação: macro (n=5) · cobertura 100% · liquidez 568 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">B3SA3</th><td><span class="selo selo-critical"><span class="selo-icone" aria-hidden="true">▼</span>FRACO</span></td><td><span class="nota nota-D">D</span></td><td class="num forte">48.8</td><td class="num">6.8</td><td class="num">0.74</td><td class="num">2.4%</td><td class="num">10.8%</td><td class="num">1.23</td><td class="num delta-pos">112%</td><td>Servicos Financeiros</td><td>MID</td><td>MEDIO</td><td>CRESCIMENTO</td><td class="sec" data-dica="Grupo de comparação: universo (n=9) · cobertura 100% · liquidez 331 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">VALE3</th><td><span class="selo selo-critical"><span class="selo-icone" aria-hidden="true">▼</span>FRACO</span></td><td><span class="nota nota-D">D</span></td><td class="num forte">45.1</td><td class="num">28.4</td><td class="num">1.56</td><td class="num">8.0%</td><td class="num">5.3%</td><td class="num">0.82</td><td class="num delta-neg">-29%</td><td>Materiais Básicos</td><td>LARGE</td><td>MEDIO</td><td>DIVIDENDOS</td><td class="sec" data-dica="Grupo de comparação: universo (n=4) · cobertura 100% · liquidez 1.5 bi/pregão">alta</td><td class="sec">brapi</td></tr><tr><th scope="row" class="papel">LEVE3</th><td><span class="selo selo-critical"><span class="selo-icone" aria-hidden="true">▼</span>FRACO</span></td><td><span class="nota nota-D">D</span></td><td class="num forte">43.2</td><td class="num">6.6</td><td class="num">1.39</td><td class="num">5.0%</td><td class="num">21.1%</td><td class="num">1.78</td><td class="num delta-pos">56%</td><td>Bens de Consumo Ciclico</td><td>MID</td><td>MEDIO</td><td>ESPECULATIVO</td><td class="sec" data-dica="Grupo de comparação: macro (n=5) · cobertura 100% · liquidez 907 mi/pregão">alta</td><td class="sec">sintetico</td></tr><tr><th scope="row" class="papel">MGLU3</th><td><span class="selo selo-critical"><span class="selo-icone" aria-hidden="true">▼</span>FRACO</span></td><td><span class="nota nota-E">E</span></td><td class="num forte">31.9</td><td class="num">64.3</td><td class="num">0.51</td><td class="num">1.0%</td><td class="num">0.8%</td><td class="num">0.79</td><td class="num delta-neg">-17%</td><td>Consumo Cíclico</td><td>SMALL</td><td>ALTO</td><td>ESPECULATIVO</td><td class="sec" data-dica="Grupo de comparação: universo (n=4) · cobertura 100% · liquidez 145 mi/pregão">alta</td><td class="sec">brapi</td></tr><tr><th scope="row" class="papel">MUTC34</th><td><span class="selo selo-muted"><span class="selo-icone" aria-hidden="true">—</span>SEM DADOS</span></td><td><span class="nota nota-SD">SD</span></td><td class="num forte">&ndash;</td><td class="num">&ndash;</td><td class="num">&ndash;</td><td class="num">&ndash;</td><td class="num">&ndash;</td><td class="num">&ndash;</td><td class="num ">&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>MEDIO</td><td>&ndash;</td><td class="sec" data-dica="Grupo de comparação: &ndash; (n=0) · cobertura 0% · liquidez 1.0 bi/pregão">baixa</td><td class="sec">sintetico</td></tr></tbody></table></div></section>
+<section class="bloco"><h2>Score por pilar</h2><p class="sub">Cada pilar vale de 0 a 100. Células vazias (<code>n/d</code>) são indicadores que a API não entrega para aquele tipo de empresa &mdash; bancos não têm liquidez corrente nem EBITDA no sentido industrial, por exemplo.</p><div class="heatmap" style="--cols:4"><div class="hm-cel hm-canto"></div><div class="hm-cel hm-topo">Valuation</div><div class="hm-cel hm-topo">Rentabilidade</div><div class="hm-cel hm-topo">Solidez</div><div class="hm-cel hm-topo">Dividendos</div><div class="hm-cel hm-lado">ITUB4</div><div class="hm-cel hm-val hm-4" data-dica="ITUB4 · Valuation: 69 de 100" tabindex="0">69</div><div class="hm-cel hm-val hm-5" data-dica="ITUB4 · Rentabilidade: 76 de 100" tabindex="0">76</div><div class="hm-cel hm-val hm-0" data-dica="ITUB4 · Solidez: sem dados suficientes" tabindex="0">n/d</div><div class="hm-cel hm-val hm-6" data-dica="ITUB4 · Dividendos: 86 de 100" tabindex="0">86</div><div class="hm-cel hm-lado">PETR4</div><div class="hm-cel hm-val hm-6" data-dica="PETR4 · Valuation: 87 de 100" tabindex="0">87</div><div class="hm-cel hm-val hm-5" data-dica="PETR4 · Rentabilidade: 84 de 100" tabindex="0">84</div><div class="hm-cel hm-val hm-2" data-dica="PETR4 · Solidez: 26 de 100" tabindex="0">26</div><div class="hm-cel hm-val hm-6" data-dica="PETR4 · Dividendos: 86 de 100" tabindex="0">86</div><div class="hm-cel hm-lado">BBAS3</div><div class="hm-cel hm-val hm-6" data-dica="BBAS3 · Valuation: 90 de 100" tabindex="0">90</div><div class="hm-cel hm-val hm-4" data-dica="BBAS3 · Rentabilidade: 62 de 100" tabindex="0">62</div><div class="hm-cel hm-val hm-2" data-dica="BBAS3 · Solidez: 29 de 100" tabindex="0">29</div><div class="hm-cel hm-val hm-6" data-dica="BBAS3 · Dividendos: 98 de 100" tabindex="0">98</div><div class="hm-cel hm-lado">WEGE3</div><div class="hm-cel hm-val hm-6" data-dica="WEGE3 · Valuation: 92 de 100" tabindex="0">92</div><div class="hm-cel hm-val hm-3" data-dica="WEGE3 · Rentabilidade: 41 de 100" tabindex="0">41</div><div class="hm-cel hm-val hm-6" data-dica="WEGE3 · Solidez: 86 de 100" tabindex="0">86</div><div class="hm-cel hm-val hm-2" data-dica="WEGE3 · Dividendos: 29 de 100" tabindex="0">29</div><div class="hm-cel hm-lado">EGIE3</div><div class="hm-cel hm-val hm-5" data-dica="EGIE3 · Valuation: 78 de 100" tabindex="0">78</div><div class="hm-cel hm-val hm-5" data-dica="EGIE3 · Rentabilidade: 77 de 100" tabindex="0">77</div><div class="hm-cel hm-val hm-1" data-dica="EGIE3 · Solidez: 19 de 100" tabindex="0">19</div><div class="hm-cel hm-val hm-6" data-dica="EGIE3 · Dividendos: 97 de 100" tabindex="0">97</div><div class="hm-cel hm-lado">ABEV3</div><div class="hm-cel hm-val hm-6" data-dica="ABEV3 · Valuation: 92 de 100" tabindex="0">92</div><div class="hm-cel hm-val hm-4" data-dica="ABEV3 · Rentabilidade: 65 de 100" tabindex="0">65</div><div class="hm-cel hm-val hm-3" data-dica="ABEV3 · Solidez: 45 de 100" tabindex="0">45</div><div class="hm-cel hm-val hm-3" data-dica="ABEV3 · Dividendos: 42 de 100" tabindex="0">42</div><div class="hm-cel hm-lado">ITSA4</div><div class="hm-cel hm-val hm-6" data-dica="ITSA4 · Valuation: 90 de 100" tabindex="0">90</div><div class="hm-cel hm-val hm-5" data-dica="ITSA4 · Rentabilidade: 77 de 100" tabindex="0">77</div><div class="hm-cel hm-val hm-1" data-dica="ITSA4 · Solidez: 2 de 100" tabindex="0">2</div><div class="hm-cel hm-val hm-6" data-dica="ITSA4 · Dividendos: 85 de 100" tabindex="0">85</div><div class="hm-cel hm-lado">BBDC4</div><div class="hm-cel hm-val hm-6" data-dica="BBDC4 · Valuation: 91 de 100" tabindex="0">91</div><div class="hm-cel hm-val hm-6" data-dica="BBDC4 · Rentabilidade: 90 de 100" tabindex="0">90</div><div class="hm-cel hm-val hm-1" data-dica="BBDC4 · Solidez: 5 de 100" tabindex="0">5</div><div class="hm-cel hm-val hm-1" data-dica="BBDC4 · Dividendos: 11 de 100" tabindex="0">11</div><div class="hm-cel hm-lado">BRAV4</div><div class="hm-cel hm-val hm-3" data-dica="BRAV4 · Valuation: 48 de 100" tabindex="0">48</div><div class="hm-cel hm-val hm-3" data-dica="BRAV4 · Rentabilidade: 53 de 100" tabindex="0">53</div><div class="hm-cel hm-val hm-3" data-dica="BRAV4 · Solidez: 49 de 100" tabindex="0">49</div><div class="hm-cel hm-val hm-4" data-dica="BRAV4 · Dividendos: 67 de 100" tabindex="0">67</div><div class="hm-cel hm-lado">B3SA3</div><div class="hm-cel hm-val hm-5" data-dica="B3SA3 · Valuation: 73 de 100" tabindex="0">73</div><div class="hm-cel hm-val hm-3" data-dica="B3SA3 · Rentabilidade: 42 de 100" tabindex="0">42</div><div class="hm-cel hm-val hm-3" data-dica="B3SA3 · Solidez: 45 de 100" tabindex="0">45</div><div class="hm-cel hm-val hm-1" data-dica="B3SA3 · Dividendos: 19 de 100" tabindex="0">19</div><div class="hm-cel hm-lado">VALE3</div><div class="hm-cel hm-val hm-3" data-dica="VALE3 · Valuation: 44 de 100" tabindex="0">44</div><div class="hm-cel hm-val hm-2" data-dica="VALE3 · Rentabilidade: 28 de 100" tabindex="0">28</div><div class="hm-cel hm-val hm-2" data-dica="VALE3 · Solidez: 34 de 100" tabindex="0">34</div><div class="hm-cel hm-val hm-6" data-dica="VALE3 · Dividendos: 100 de 100" tabindex="0">100</div><div class="hm-cel hm-lado">LEVE3</div><div class="hm-cel hm-val hm-4" data-dica="LEVE3 · Valuation: 65 de 100" tabindex="0">65</div><div class="hm-cel hm-val hm-3" data-dica="LEVE3 · Rentabilidade: 46 de 100" tabindex="0">46</div><div class="hm-cel hm-val hm-1" data-dica="LEVE3 · Solidez: 6 de 100" tabindex="0">6</div><div class="hm-cel hm-val hm-4" data-dica="LEVE3 · Dividendos: 55 de 100" tabindex="0">55</div><div class="hm-cel hm-lado">MGLU3</div><div class="hm-cel hm-val hm-4" data-dica="MGLU3 · Valuation: 64 de 100" tabindex="0">64</div><div class="hm-cel hm-val hm-1" data-dica="MGLU3 · Rentabilidade: 13 de 100" tabindex="0">13</div><div class="hm-cel hm-val hm-2" data-dica="MGLU3 · Solidez: 35 de 100" tabindex="0">35</div><div class="hm-cel hm-val hm-1" data-dica="MGLU3 · Dividendos: 0 de 100" tabindex="0">0</div></div><div class="hm-legenda"><span class="sec">0</span><span class="hm-leg-passo hm-1"></span><span class="hm-leg-passo hm-2"></span><span class="hm-leg-passo hm-3"></span><span class="hm-leg-passo hm-4"></span><span class="hm-leg-passo hm-5"></span><span class="hm-leg-passo hm-6"></span><span class="sec">100</span></div></section>
+
+<footer>
+  <p><strong>Como ler o sinal.</strong> Ele combina qualidade (score composto de 4 pilares)
+  com preço (margem de segurança sobre o valor de Graham). As regras são assimétricas de
+  propósito: para marcar <em>FRACO</em> basta um alerta isolado, enquanto <em>FORTE</em> exige
+  todas as condições boas ao mesmo tempo, inclusive confiança mínima nos dados.</p>
+  <p><strong>Procedência dos dados.</strong> 4 dos 14 ativos têm fundamentos
+  reais da brapi.dev; os demais são sintéticos, marcados como <code>sintetico</code> na coluna
+  Fonte, e nunca são comparados contra os reais no cálculo de percentil. A cotação tem atraso
+  de cerca de 30 minutos e alguns indicadores são derivados por aproximação, com a origem
+  registrada na camada silver.</p>
+  <p><strong>Isto não é recomendação de investimento.</strong> É a saída de um modelo
+  construído para exercitar um pipeline de dados.</p>
+</footer>
+
+</div></div>
+<div id="dica" role="tooltip"></div>
+<script>
+(function(){
+  var raiz=document.documentElement, botao=document.getElementById('tema');
+  function rotular(){
+    var escuro=raiz.getAttribute('data-theme')==='dark'||
+      (!raiz.hasAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
+    botao.textContent=escuro?'\u2600 Tema claro':'\u263d Tema escuro';
+  }
+  botao.addEventListener('click',function(){
+    var escuro=raiz.getAttribute('data-theme')==='dark'||
+      (!raiz.hasAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
+    raiz.setAttribute('data-theme',escuro?'light':'dark'); rotular();
+  });
+  rotular();
+
+  var dica=document.getElementById('dica');
+  function mostrar(e){
+    var alvo=e.target.closest('[data-dica]'); if(!alvo)return;
+    dica.innerHTML=alvo.getAttribute('data-dica'); dica.classList.add('on');
+    var r=alvo.getBoundingClientRect(), d=dica.getBoundingClientRect();
+    var x=Math.min(Math.max(8,r.left+r.width/2-d.width/2),innerWidth-d.width-8);
+    var y=r.top-d.height-8; if(y<8){y=r.bottom+8;}
+    dica.style.left=x+'px'; dica.style.top=y+'px';
+  }
+  function esconder(){dica.classList.remove('on');}
+  document.addEventListener('mouseover',mostrar);
+  document.addEventListener('mouseout',esconder);
+  document.addEventListener('focusin',mostrar);
+  document.addEventListener('focusout',esconder);
+})();
+</script>
+</body>
+</html>
