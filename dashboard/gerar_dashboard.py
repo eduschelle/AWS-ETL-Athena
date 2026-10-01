@@ -380,11 +380,19 @@ code{font-size:0.92em;background:var(--hm-0-bg);padding:1px 4px;border-radius:3p
   font-size:12.5px}
 .leg-item{display:flex;align-items:center;gap:9px}
 /* selo de status: cor + icone + rotulo, nunca cor sozinha */
+/* O TEXTO usa tinta de texto; so o ICONE carrega a cor de status. Alem de ser a regra
+   geral (rotulo em tinta de texto, marca colorida ao lado para a identidade), isto resolve
+   um problema concreto de leitura: o amarelo de "warning" fica em 1.79:1 contra a
+   superficie clara, entao um rotulo escrito nele seria quase ilegivel. Com cor + icone +
+   palavra, nenhuma informacao depende da cor sozinha. */
 .selo{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
-  letter-spacing:0.02em;white-space:nowrap}
+  letter-spacing:0.02em;white-space:nowrap;color:var(--text-primary)}
 .selo-icone{font-size:10px;line-height:1}
-.selo-good{color:var(--good)} .selo-warning{color:var(--warning)}
-.selo-critical{color:var(--critical)} .selo-muted{color:var(--muted)}
+.selo-good .selo-icone{color:var(--good)}
+.selo-warning .selo-icone{color:var(--warning)}
+.selo-critical .selo-icone{color:var(--critical)}
+.selo-muted{color:var(--text-secondary)}
+.selo-muted .selo-icone{color:var(--muted)}
 /* tabela */
 .rolagem{overflow-x:auto;margin:0 -4px;padding:0 4px}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -398,14 +406,18 @@ tbody tr:hover{background:var(--plane)}
 .papel{font-weight:620}
 .forte{font-weight:620}
 .delta-pos{color:var(--delta-pos)} .delta-neg{color:var(--delta-neg)}
+/* Tinta neutra de proposito. A nota (faixa de score) e o sinal (score + preco +
+   confianca) sao coisas diferentes — ITUB4 e nota B com sinal NEUTRO. Pintar as duas
+   colunas de verde/vermelho sugeriria que dizem a mesma coisa. A cor de status fica
+   exclusivamente na coluna Sinal; aqui a propria letra carrega a identidade. */
 .nota{display:inline-block;min-width:19px;text-align:center;font-weight:620;font-size:11.5px}
-.nota-A,.nota-B{color:var(--delta-pos)}
-.nota-C{color:var(--text-secondary)}
-.nota-D,.nota-E{color:var(--critical)}
-.nota-None{color:var(--muted)}
+.nota-SD{color:var(--muted)}
 /* heatmap: 2px de superficie entre celulas */
-.heatmap{display:grid;grid-template-columns:auto repeat(var(--cols),minmax(84px,1fr));
-  gap:2px;margin-bottom:12px}
+/* Colunas estreitas e fixas: preenchimento saturado e para marca pequena, nunca para
+   bloco grande — esticar a celula ate a largura da pagina faria o heatmap ler como
+   grafico de barras e pesaria demais visualmente. */
+.heatmap{display:grid;grid-template-columns:auto repeat(var(--cols),96px);
+  gap:2px;margin-bottom:12px;width:max-content;max-width:100%}
 .hm-cel{padding:7px 9px;font-size:12px;display:flex;align-items:center}
 .hm-topo{color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:0.03em;
   text-transform:uppercase;justify-content:center;padding-bottom:5px}
